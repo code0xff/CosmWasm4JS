@@ -89,7 +89,7 @@ class MockStorage implements Storage {
       ],
     };
 
-    const inistantiateMsg = {
+    const instantiateMsg = {
       name: "opentoken",
       symbol: "opt",
       decimals: 9,
@@ -106,7 +106,7 @@ class MockStorage implements Storage {
       instance,
       env,
       info,
-      Buffer.from(JSON.stringify(inistantiateMsg), "utf8")
+      Buffer.from(JSON.stringify(instantiateMsg), "utf8")
     );
     let resJson = JSON.parse(res.toString("utf8"));
     console.log(resJson);

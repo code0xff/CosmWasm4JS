@@ -72,8 +72,8 @@ export function doAddrValidate<
   }
   const sourceString = sourceData.toString("utf8");
   const canonical = Buffer.from(sourceString, "base64url");
-  const nomalized = canonical.toString("base64url");
-  if (nomalized !== sourceString) {
+  const normalized = canonical.toString("base64url");
+  if (normalized !== sourceString) {
     return writeToContract(
       instance,
       Buffer.from("Address is not normalized", "utf8")

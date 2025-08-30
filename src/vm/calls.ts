@@ -80,7 +80,7 @@ function callRaw<A extends BackendApi, S extends Storage, Q extends Querier>(
   instance: Instance<A, S, Q>,
   name: string,
   args: Buffer[],
-  resultMaxLegnth: number
+  resultMaxLength: number
 ): Buffer {
   const argRegionPtrs: number[] = [];
   const { allocate, memory } = instance.inner.exports;
@@ -95,7 +95,7 @@ function callRaw<A extends BackendApi, S extends Storage, Q extends Querier>(
   const data = readRegion(
     memory as WebAssembly.Memory,
     resRegionPtr,
-    resultMaxLegnth
+    resultMaxLength
   );
   const { deallocate } = instance.inner.exports;
   (deallocate as CallableFunction)(resRegionPtr);
