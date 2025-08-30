@@ -13,11 +13,15 @@ import {
 import fs from "fs";
 
 class MockBackendApi implements BackendApi {
-  public canonicalAddress(human: string): Buffer {
+  public addrValidate(input: string): boolean {
+    return true;
+  }
+
+  public addrCanonicalize(human: string): Buffer {
     return Buffer.from(human, "base64url");
   }
 
-  public humanAddress(canonical: Buffer): string {
+  public addrHumanize(canonical: Buffer): string {
     return canonical.toString("base64url");
   }
 }

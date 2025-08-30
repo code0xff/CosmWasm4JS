@@ -1,4 +1,4 @@
-import { CommunicationError, VmError } from "../errors/index.js";
+import { BackendError, CommunicationError, VmError } from "../errors/index.js";
 import { readRegion, writeRegion } from "./memory.js";
 import * as secp from "@noble/secp256k1";
 import * as ed from "@noble/ed25519";
@@ -71,14 +71,18 @@ export function doAddrValidate<
     return writeToContract(instance, Buffer.from("Input is empty", "utf8"));
   }
   const sourceString = sourceData.toString("utf8");
-  const canonical = Buffer.from(sourceString, "base64url");
-  const normalized = canonical.toString("base64url");
-  if (normalized !== sourceString) {
-    return writeToContract(
-      instance,
-      Buffer.from("Address is not normalized", "utf8")
-    );
+  try {
+    instance.env.api.addrValidate(sourceString);
+  } catch (e: any) {
+    if (e.name === "UserErr") {
+      return writeToContract(instance, Buffer.from(e.message, "utf8"));
+    } else if (e.name === "OutOfGas") {
+      throw VmError.gasDepletion();
+    } else {
+      throw VmError.backendErr(e);
+    }
   }
+
   return 0;
 }
 
@@ -96,7 +100,7 @@ export function doAddrCanonicalize<
   if (sourceData.length === 0) {
     return writeToContract(instance, Buffer.from("Input is empty", "utf8"));
   }
-  const canonical = instance.env.api.canonicalAddress(
+  const canonical = instance.env.api.addrCanonicalize(
     sourceData.toString("utf8")
   );
   writeRegion(memory, destinationPtr, canonical);
@@ -114,7 +118,7 @@ export function doAddrHumanize<
 ): number {
   const memory = instance.inner.exports.memory as WebAssembly.Memory;
   const canonical = readRegion(memory, sourcePtr, MAX_LENGTH_CANONICAL_ADDRESS);
-  const human = instance.env.api.humanAddress(canonical);
+  const human = instance.env.api.addrHumanize(canonical);
   writeRegion(memory, destinationPtr, Buffer.from(human, "utf8"));
   return 0;
 }

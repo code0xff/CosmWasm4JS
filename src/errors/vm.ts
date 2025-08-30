@@ -1,3 +1,5 @@
+import { BackendError } from "./backend.js";
+
 export class VmError implements Error {
   name: string;
   message: string;
@@ -10,6 +12,14 @@ export class VmError implements Error {
 
   static aborted = (msg: string) => {
     return new VmError("Aborted", msg);
+  };
+
+  static backendErr = (source: BackendError) => {
+    return new VmError("BackendErr", `Error calling into the VM's backend: ${source}`);
+  };
+
+  static gasDepletion = () => {
+    return new VmError("GasDepletion", "Ran out of gas during contract execution");
   };
 
   static runtimeErr = (msg: string) => {

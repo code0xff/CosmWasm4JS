@@ -45,8 +45,9 @@ export interface Storage {
 }
 
 export interface BackendApi {
-  canonicalAddress: (human: string) => Buffer;
-  humanAddress: (canonical: Buffer) => string;
+  addrValidate: (input: string) => void;
+  addrCanonicalize: (human: string) => Buffer;
+  addrHumanize: (canonical: Buffer) => string;
 }
 
 export interface Querier {
