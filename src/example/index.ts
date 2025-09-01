@@ -11,20 +11,55 @@ import {
   InstanceOption,
 } from "../vm/index.js";
 import fs from "fs";
+import { bech32 } from "bech32";
+import { BackendError } from "../errors/index.js";
 
 class MockBackendApi implements BackendApi {
-  public addrValidate(input: string): boolean {
-    return true;
+  bech32Prefix: string;
+
+  constructor(bech32Prefix: string) {
+    this.bech32Prefix = bech32Prefix;
+  }
+
+  public addrValidate(input: string): void {
+    const canonicalized = this.addrCanonicalize(input);
+    const humanized = this.addrHumanize(canonicalized);
+
+    if (input !== humanized) {
+      throw BackendError.userErr("Invalid input: address not normalized");
+    }
   }
 
   public addrCanonicalize(human: string): Buffer {
-    return Buffer.from(human, "base64url");
+    const { prefix: hrp, words } = bech32.decode(human);
+
+    if (hrp.toLowerCase() !== this.bech32Prefix.toLowerCase()) {
+      throw BackendError.userErr("Wrong bech32 prefix");
+    }
+
+    const bytes = Buffer.from(words);
+    validateLength(bytes);
+
+    return bytes;
   }
 
   public addrHumanize(canonical: Buffer): string {
-    return canonical.toString("base64url");
+    validateLength(canonical);
+
+    try {
+      return bech32.encode(this.bech32Prefix, canonical);
+    } catch (e: any) {
+      throw BackendError.userErr("Invalid data to be encoded to bech32");
+    }
   }
 }
+
+function validateLength(bytes: Buffer): void {
+  if (bytes.length === 0 || bytes.length > 255) {
+    throw BackendError.userErr("Invalid canonical address length");
+  }
+}
+
 
 class MockQuerier implements Querier {
   public queryRaw(request: Buffer): Buffer {
@@ -40,15 +75,15 @@ class MockStorage implements Storage {
   }
 
   public get(key: Buffer): Buffer {
-    return this.data.get(key.toString("base64url"));
+    return this.data.get(key.toString("base64"));
   }
 
   public set(key: Buffer, value: Buffer): void {
-    this.data.set(key.toString("base64url"), value);
+    this.data.set(key.toString("base64"), value);
   }
 
   public remove(key: Buffer): void {
-    this.data.delete(key.toString("base64url"));
+    this.data.delete(key.toString("base64"));
   }
 }
 
@@ -56,7 +91,7 @@ class MockStorage implements Storage {
   try {
     const code = fs.readFileSync("./contracts/cw20.wasm");
     const backend = new Backend(
-      new MockBackendApi(),
+      new MockBackendApi("osmo"),
       new MockStorage(),
       new MockQuerier()
     );
@@ -83,23 +118,26 @@ class MockStorage implements Storage {
         address: "contractaddr",
       },
     };
+
+    const sender = "osmo19r75m986sfx33nqhxp6uwp74yggnp9eu9gyczy";
+
     const info: MessageInfo = {
-      sender: "W7HxkpaKwXif1gwj46gbNba7xKx9s8xUahh-Q_iQTdA",
+      sender,
       funds: [
         {
-          denom: "opc",
+          denom: "osmo",
           amount: 0n.toString(),
         },
       ],
     };
 
     const instantiateMsg = {
-      name: "opentoken",
-      symbol: "opt",
+      name: "wasm token",
+      symbol: "wasm",
       decimals: 9,
       initial_balances: [
         {
-          address: "W7HxkpaKwXif1gwj46gbNba7xKx9s8xUahh-Q_iQTdA",
+          address: sender,
           amount: "1000000000",
         },
       ],
@@ -117,7 +155,7 @@ class MockStorage implements Storage {
 
     let queryMsg = {
       balance: {
-        address: "W7HxkpaKwXif1gwj46gbNba7xKx9s8xUahh-Q_iQTdA",
+        address: sender,
       },
     };
     res = callQuery(
@@ -126,11 +164,13 @@ class MockStorage implements Storage {
       Buffer.from(JSON.stringify(queryMsg), "utf8")
     );
     resJson = JSON.parse(res.toString("utf8"));
-    console.log(Buffer.from(resJson["ok"], "base64url").toString("utf8"));
+    console.log(Buffer.from(resJson["ok"], "base64").toString("utf8"));
+
+    const recipient = "osmo1y062gcc770rt8muthw7qduf78wfs5mlv7k3acg";
 
     const executeMsg = {
       transfer: {
-        recipient: "gBdRgmpzvixp2Nnf76LLTCrSYpuJfGp3TTGm8MaxSxo",
+        recipient,
         amount: "1000",
       },
     };
@@ -141,11 +181,11 @@ class MockStorage implements Storage {
       Buffer.from(JSON.stringify(executeMsg), "utf8")
     );
     resJson = JSON.parse(res.toString("utf8"));
-    console.log(resJson);
+    console.log(JSON.stringify(resJson, null, 2));
 
     queryMsg = {
       balance: {
-        address: "W7HxkpaKwXif1gwj46gbNba7xKx9s8xUahh-Q_iQTdA",
+        address: sender,
       },
     };
     res = callQuery(
@@ -154,11 +194,11 @@ class MockStorage implements Storage {
       Buffer.from(JSON.stringify(queryMsg), "utf8")
     );
     resJson = JSON.parse(res.toString("utf8"));
-    console.log(Buffer.from(resJson["ok"], "base64url").toString("utf8"));
+    console.log(Buffer.from(resJson["ok"], "base64").toString("utf8"));
 
     queryMsg = {
       balance: {
-        address: "gBdRgmpzvixp2Nnf76LLTCrSYpuJfGp3TTGm8MaxSxo",
+        address: recipient,
       },
     };
     res = callQuery(
@@ -167,7 +207,7 @@ class MockStorage implements Storage {
       Buffer.from(JSON.stringify(queryMsg), "utf8")
     );
     resJson = JSON.parse(res.toString("utf8"));
-    console.log(Buffer.from(resJson["ok"], "base64url").toString("utf8"));
+    console.log(Buffer.from(resJson["ok"], "base64").toString("utf8"));
   } catch (e: unknown) {
     console.error({ e });
   }
